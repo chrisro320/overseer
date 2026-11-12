@@ -17,7 +17,7 @@ git clone https://github.com/mmnavarr/overseer.git && cd overseer
 tern plugin link "$PWD"
 ```
 
-Tern reloads a linked plugin whenever a file in it changes, including inside `.git`. To keep your everyday Overseer steady, smoke-test changes in an isolated Tern window ([how](AGENTS.md#developing)).
+Tern reloads a linked plugin whenever a file in it changes, including inside `.git`. To keep your everyday Overseer steady, smoke-test changes in an isolated Tern window ([how](docs/development.md#isolated-ui-smoke-testing)).
 
 ## Pull request checklist
 
@@ -25,7 +25,7 @@ Tern reloads a linked plugin whenever a file in it changes, including inside `.g
 - [ ] You tried the change in a running Tern (an isolated window is fine) and say in the PR what you checked.
 - [ ] User-visible changes bump `version` in `plugin.toml` and `omp/package.json`, and add an entry at the top of [CHANGELOG.md](CHANGELOG.md).
 - [ ] External commands live in `worktrunk.luau` as argv arrays, never as shell text.
-- [ ] Docs: the [README](README.md) stays short and visual; details belong in [AGENTS.md](AGENTS.md).
+- [ ] Docs: the [README](README.md) stays short and visual; details belong in [AGENTS.md](AGENTS.md) and [`docs/`](docs/).
 
 ## License
 
