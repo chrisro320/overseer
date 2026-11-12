@@ -6,7 +6,7 @@
 
 [![Release](https://img.shields.io/github/v/release/mmnavarr/overseer?label=release)](https://github.com/mmnavarr/overseer/releases/latest)
 [![License: MIT](https://img.shields.io/github/license/mmnavarr/overseer)](LICENSE)
-![macOS](https://img.shields.io/badge/platform-macOS-lightgrey)
+![macOS and Linux](https://img.shields.io/badge/platform-macOS%20%7C%20Linux-lightgrey)
 [![Tern 0.9.9+](https://img.shields.io/badge/Tern-0.9.9%2B-blue)](https://docs.stencil.so/tern/)
 
 One panel for every branch you have in flight: its worktree, its agents, its pull request and its ticket.<br>
@@ -45,9 +45,9 @@ Run this in any terminal:
 tern plugin install github.com/mmnavarr/overseer
 ```
 
-That's it. Tern downloads Overseer into its own plugins folder and loads it; no clone, no build. Press <kbd>⌘</kbd><kbd>⌥</kbd><kbd>⇧</kbd><kbd>P</kbd> to open Projects.
+That's it. Tern downloads Overseer into its own plugins folder and loads it; no clone, no build. Press <kbd>⌘</kbd><kbd>⌥</kbd><kbd>⇧</kbd><kbd>P</kbd> to open Projects (on Linux, the Super key stands in for ⌘).
 
-**You'll need** macOS, [Tern](https://docs.stencil.so/tern/) 0.9.9 or later, and [Worktrunk](https://worktrunk.dev) (`brew install worktrunk`; tested with 0.40 and 0.81). These are optional and add features:
+**You'll need** macOS or Linux, [Tern](https://docs.stencil.so/tern/) 0.9.9 or later, and [Worktrunk](https://worktrunk.dev) (`brew install worktrunk`, on Linux also `cargo install worktrunk` or `pacman -S worktrunk`; tested with 0.40 and 0.81). These are optional and add features:
 
 | Add | To get |
 |---|---|
@@ -60,7 +60,7 @@ That's it. Tern downloads Overseer into its own plugins folder and loads it; no 
 
 ## Use it
 
-1. **Show Projects** with <kbd>⌘</kbd><kbd>⌥</kbd><kbd>⇧</kbd><kbd>P</kbd>.
+1. **Show Projects** with <kbd>⌘</kbd><kbd>⌥</kbd><kbd>⇧</kbd><kbd>P</kbd> (on Linux, Super stands in for ⌘).
 2. **Add a repo** with **+** in the panel's header.
 3. **Open a worktree** by clicking its row.
 4. **Start a new one** with **+** next to a project.
@@ -127,7 +127,7 @@ Worktrunk owns the worktrees, Tern owns the sessions, and Overseer never deletes
 
 ## Troubleshooting
 
-- **"Worktrunk (wt) was not found".** Run `brew install worktrunk`. Overseer looks on Tern's PATH, then in `/opt/homebrew/bin`, `/usr/local/bin`, `~/.bun/bin` and `~/.local/bin`.
+- **"Worktrunk (wt) was not found".** Run `brew install worktrunk` (Linux: `cargo install worktrunk`, or your distribution's package). Overseer looks on Tern's PATH, then in `/opt/homebrew/bin`, `/usr/local/bin`, `~/.bun/bin` and `~/.local/bin`.
 - **No PR badges.** Sign in with `gh auth login`. Badges only show for repositories whose `origin` is on GitHub.
 - **No ticket links.** Sign in with `linear auth login`, or pick a workspace with **Set Linear workspace…** on the project's right-click menu. The branch name needs a ticket ID such as `ENG-123`.
 - **A new worktree says "needs you?".** Setup is asking a question, usually a Worktrunk hook approval. Click the row to answer it.

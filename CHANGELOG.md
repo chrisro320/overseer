@@ -1,5 +1,16 @@
 # Changelog
 
+## 2.4.1 (2026-11-07)
+
+- **The folder picker is the desktop's own.** Adding a project on KDE now opens KDE's file dialog — the same widget Dolphin uses, with places, thumbnails and a breadcrumb — instead of GTK's bare list. GNOME and other desktops keep `zenity`; each falls back to the other, and a desktop with neither still asks for a path over the focused pane.
+
+## 2.4.0 (2026-11-06)
+
+- **Linux support.** Overseer now runs where Tern does: the Projects panel, sessions, worktree creation and deletion, PR and ticket badges, all on Linux as on macOS. There was nothing to build; the plugin is Luau, loaded by Tern.
+- **Adding a project no longer requires AppleScript.** The picker is the platform's: AppleScript's `choose folder` on macOS, `zenity` or `kdialog` on Linux, and, when neither is installed, a path field over the focused pane instead of a failure.
+- **No hardcoded `/bin` paths.** `bash`, `sleep`, `pwd`, `kill`, `mktemp`, `mv` and `rm` are resolved through PATH with the usual absolute fallbacks, so a sparse desktop environment or a distribution without `/bin` still works. `tern new` finds Tern's executable the same way.
+- The Projects shortcut stays ⌘⌥⇧P; on Linux Tern maps ⌘ to the Super key, so the same chord opens it. (Ctrl+Alt+Shift+<kbd>P</kbd> is already a Tern preset binding there.)
+
 ## 2.3.3 (2026-11-06)
 
 - **Fixed: coordination with Worktrunk 0.81.** Worktrunk 0.81 moved a worktree's commit to `head` and its ahead/behind counts to `default_branch` and `upstream` in `wt list`'s JSON. Overseer only read the old names, so on 0.81 sub-worktrees were never told their parent's branch moved, a task's agent could miss a sub-worktree finishing with new commits on its pull request, and row tooltips lost their ahead/behind counts. Overseer now reads both, and is tested with Worktrunk 0.40 and 0.81 ([#4](https://github.com/mmnavarr/overseer/issues/4)).

@@ -51,7 +51,7 @@ local function removeLegacy()
 	local program = 'home=$1; shift; while [ $# -gt 1 ]; do p="$home/$1"; '
 		.. 'if [ -L "$p" ]; then case "$(readlink "$p")" in *"$2") rm -f -- "$p" && printf "%s\\n" "$p";; esac; fi; '
 		.. "shift 2; done"
-	local argv = { "/bin/bash", "-c", program, "overseer", home }
+	local argv = { wt.bash(), "-c", program, "overseer", home }
 	for _, legacy in LEGACY do
 		table.insert(argv, legacy[1])
 		table.insert(argv, legacy[2])
@@ -95,7 +95,7 @@ function M.ensure()
 		end
 		-- Compare where both paths really lead; Tern may hand us a symlinked dir.
 		local resolve = 'for p in "$@"; do (cd -P -- "$p" 2>/dev/null && pwd -P) || echo; done'
-		run("resolve", { "/bin/bash", "-c", resolve, "overseer", source, entry.path }, function(resolved)
+		run("resolve", { wt.bash(), "-c", resolve, "overseer", source, entry.path }, function(resolved)
 			local lines = {}
 			for line in string.gmatch((resolved.stdout or "") .. "\n", "(.-)\n") do table.insert(lines, line) end
 			if lines[1] ~= nil and lines[1] ~= "" and lines[1] == lines[2] then

@@ -2,6 +2,12 @@
 # Run inside an operation terminal: wt and its hooks inherit this PTY.
 set -u
 
+# PATH first, then the usual absolute paths: Tern can start with a sparse
+# environment, and some distributions keep no binaries in /bin or /usr/bin.
+mktemp_cmd=$(command -v mktemp) || mktemp_cmd=/usr/bin/mktemp
+mv_cmd=$(command -v mv) || mv_cmd=/bin/mv
+rm_cmd=$(command -v rm) || rm_cmd=/bin/rm
+
 if [ "$#" -ne 6 ]; then
     printf 'Usage: worktree-operation.sh MODE WT REPOSITORY TARGET OPTION RECEIPT\n' >&2
     exit 64
@@ -27,12 +33,12 @@ record_status() {
         return
     fi
     if [ -z "$receipt_tmp" ]; then
-        receipt_tmp=$(/usr/bin/mktemp "${receipt}.tmp.XXXXXX") || {
+        receipt_tmp=$("$mktemp_cmd" "${receipt}.tmp.XXXXXX") || {
             printf 'Cannot create completion receipt at %s (command exit %s).\n' "$receipt" "$status" >&2
             return 1
         }
     fi
-    if printf '%s\n' "$status" > "$receipt_tmp" && /bin/mv -f "$receipt_tmp" "$receipt"; then
+    if printf '%s\n' "$status" > "$receipt_tmp" && "$mv_cmd" -f "$receipt_tmp" "$receipt"; then
         recorded=1
         receipt_tmp=''
     else
@@ -50,11 +56,11 @@ on_exit() {
         printf 'Command exit status: %s\n' "$status"
     fi
     if [ -n "$receipt_tmp" ]; then
-        /bin/rm -f "$receipt_tmp"
+        "$rm_cmd" -f "$receipt_tmp"
     fi
     # Only after the receipt: Overseer treats a missing PID file plus a missing
     # receipt as a helper that never started.
-    /bin/rm -f "${receipt}.pid"
+    "$rm_cmd" -f "${receipt}.pid"
     exit "$status"
 }
 
@@ -64,7 +70,7 @@ trap 'exit 143' TERM
 trap 'exit 129' HUP
 
 # Check receipt writability before creating anything. mktemp uses mode 0600.
-receipt_tmp=$(/usr/bin/mktemp "${receipt}.tmp.XXXXXX") || exit 73
+receipt_tmp=$("$mktemp_cmd" "${receipt}.tmp.XXXXXX") || exit 73
 # Overseer checks this PID before treating a vanished terminal as a failure.
 printf '%s\n' "$$" > "${receipt}.pid" || exit 73
 

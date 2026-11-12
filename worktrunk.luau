@@ -77,6 +77,34 @@ local function find_executable(name)
 end
 M.find_executable = find_executable
 
+-- Platform tools: PATH first, then the absolute path a sparse desktop session
+-- might still miss. A bare name is the last resort, so a shell with its own
+-- PATH finds it.
+local function platform_tool(name, fallback)
+	local found = find_executable(name)
+	if found then return found end
+	return if tern.fs.exists(fallback) then fallback else name
+end
+
+-- The Tern executable that started this window, for `tern new` and `inspect`.
+function M.tern_binary()
+	local found = find_executable("tern")
+	if found then return found end
+	return if tern.fs.exists("/Applications/Tern.app/Contents/MacOS/tern")
+		then "/Applications/Tern.app/Contents/MacOS/tern"
+		else "tern"
+end
+
+-- The Bash that runs the operation command and the quoting helpers.
+function M.bash()
+	return platform_tool("bash", "/bin/bash")
+end
+
+-- The sleep that drives the process clock, outside Tern's timer budget.
+function M.sleep()
+	return platform_tool("sleep", "/bin/sleep")
+end
+
 local function resolve_wt()
 	return find_executable("wt")
 		or error("Worktrunk (wt) was not found. Install it and make wt available on Tern's PATH.", 0)
@@ -173,7 +201,7 @@ function M.inspect(path, done)
 			return
 		end
 		-- pwd -P resolves symlinks in a separate process without changing Tern's cwd.
-		run({ "/bin/pwd", "-P" }, function(physical, physical_err, physical_cx)
+		run({ platform_tool("pwd", "/bin/pwd"), "-P" }, function(physical, physical_err, physical_cx)
 			if not physical then
 				done(nil, physical_err, physical_cx)
 				return
@@ -572,10 +600,10 @@ local function operation_command(mode, project, target, option, receipt)
 		table.insert(program, 'printf -v ' .. variable .. ' "_%b" "' .. octal_bytes(value) .. '"; '
 			.. variable .. '=${' .. variable .. '#_}; ')
 	end
-	table.insert(program, 'exec /bin/bash "$a1" "$a2" "$a3" "$a4" "$a5" "$a6" "$a7"')
+	table.insert(program, 'exec ' .. M.bash() .. ' "$a1" "$a2" "$a3" "$a4" "$a5" "$a6" "$a7"')
 	-- A single-quoted ASCII payload, with no apostrophes, is literal in sh/zsh,
 	-- fish and Nushell. All decoding happens in Bash, not the user's login shell.
-	return "/bin/bash -c '" .. table.concat(program) .. "'"
+	return M.bash() .. " -c '" .. table.concat(program) .. "'"
 end
 
 function M.creation_command(project, branch, receipt)
@@ -708,7 +736,7 @@ function M.pull_request_diff(repo, number, path, done)
 		return
 	end
 	-- Arguments arrive as $0..$3, never as shell text.
-	run({ "/bin/bash", "-c", '"$0" pr diff "$1" --repo "$2" > "$3"', gh, tostring(number), repo, path }, function(result, err, cx)
+	run({ M.bash(), "-c", '"$0" pr diff "$1" --repo "$2" > "$3"', gh, tostring(number), repo, path }, function(result, err, cx)
 		if not result then done(nil, err, cx); return end
 		if result.status ~= 0 then done(nil, command_error("GitHub diff failed", result), cx); return end
 		done(true, nil, cx)

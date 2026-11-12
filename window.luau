@@ -8,6 +8,9 @@ local oplog = require("./oplog")
 local omplink = require("./omplink")
 
 local cache = {}
+-- macOS is where the folder picker is AppleScript and `/usr/bin/osascript`
+-- exists. Kept as a file probe so the same plugin runs unchanged elsewhere.
+local MACOS = tern.fs.exists("/usr/bin/osascript")
 local inflight = {}
 -- Helper liveness probes: job id -> true while `kill -0` runs; dead[id] once it failed.
 local probing, dead = {}, {}
@@ -1298,7 +1301,7 @@ local function startBrief(cx, project, worktree, file)
 	tern.fs.write(started, brief .. "\n\n---\nOverseer started this session from the brief your parent worktree left. "
 		.. "This worktree (" .. worktree.branch .. ") is its sub-worktree: report back with the overseer_family tool (to: parent).\n")
 	tern.fs.remove(file)
-	local ternBin = wt.find_executable("tern") or "/Applications/Tern.app/Contents/MacOS/tern"
+	local ternBin = wt.tern_binary()
 	local session = boundSession(worktree.path, sessionsById(cx))
 	local argv = { ternBin, "new" }
 	if session then
@@ -1902,29 +1905,97 @@ local function addPicked(cx, path)
 	end)
 end
 
--- Opens macOS's folder picker; choosing a Git repository adds it right away.
+-- The picker command and the exit status that means "cancelled": macOS's
+-- AppleScript, else the desktop's own folder dialog — KDE's on KDE (the same
+-- widget Dolphin uses), GTK's elsewhere — falling back to whichever is installed.
+local function is_kde()
+	local desktop = (tern.getenv("XDG_CURRENT_DESKTOP") or "") .. ":" .. (tern.getenv("XDG_SESSION_DESKTOP") or "")
+	return string.find(string.upper(desktop), "KDE", 1, true) ~= nil
+end
+
+local function folderPicker(start)
+	if MACOS then
+		local argv = { "/usr/bin/osascript" }
+		for _, line in CHOOSE_FOLDER do
+			table.insert(argv, "-e")
+			table.insert(argv, line)
+		end
+		table.insert(argv, start)
+		return argv, -128
+	end
+	local kdialog = wt.find_executable("kdialog")
+	local zenity = wt.find_executable("zenity")
+	local kde_first = {
+		{ "kdialog", kdialog }, { "zenity", zenity },
+	}
+	local gtk_first = {
+		{ "zenity", zenity }, { "kdialog", kdialog },
+	}
+	for _, candidate in ipairs(is_kde() and kde_first or gtk_first) do
+		local kind, bin = candidate[1], candidate[2]
+		if bin then
+			if kind == "kdialog" then
+				return { bin, "--title", "Choose a Git repository to add to Projects", "--getexistingdirectory", start }, 1
+			end
+			return {
+				bin, "--file-selection", "--directory",
+				"--title=Choose a Git repository to add to Projects",
+				"--filename=" .. (start:gsub("/+$", "") or start) .. "/",
+			}, 1
+		end
+	end
+	return nil
+end
+
+-- No folder dialog on this desktop: ask for the path over the focused pane.
+local function askForPath(cx)
+	cx:prompt({
+		placeholder = "Absolute path to a Git repository",
+		icon = "folder",
+		value = pickerStart(),
+	}):next(function(text, err, nextCx)
+		if not nextCx or err or type(text) ~= "string" then return end
+		local path = text:match("^%s*(.-)%s*$")
+		if path == "" then return end
+		if string.sub(path, 1, 1) == "~" then
+			path = (tern.getenv("HOME") or "") .. string.sub(path, 2)
+		end
+		if string.sub(path, 1, 1) ~= "/" then
+			report(nextCx, "Enter an absolute path, such as ~/code/my-repo.", "Not a folder path")
+			return
+		end
+		if #path > 1 then path = path:gsub("/+$", "") end
+		if not tern.fs.exists(path) then
+			report(nextCx, "No folder at " .. path, "Not a folder path")
+			return
+		end
+		addPicked(nextCx, path)
+	end)
+end
+
+-- Opens the platform's folder picker; choosing a Git repository adds it right away.
 function pickProject(cx)
 	if not requireLocal(cx) then return end
 	if picking then
 		cx:toast("info", "Folder picker already open", "Choose a folder or cancel it.")
 		return
 	end
-	picking = true
-	local argv = { "/usr/bin/osascript" }
-	for _, line in CHOOSE_FOLDER do
-		table.insert(argv, "-e")
-		table.insert(argv, line)
+	local argv, cancelled = folderPicker(pickerStart())
+	if not argv then
+		askForPath(cx)
+		return
 	end
-	table.insert(argv, pickerStart())
+	picking = true
 	-- The picker waits for the user; give up after 30 minutes untouched.
 	wt.spawn(argv, { timeout_ms = 30 * 60 * 1000 }, function(result, nextCx, startErr)
 		picking = false
 		if not nextCx then return end
 		if not result then report(nextCx, "Couldn't open the folder picker: " .. startErr, "Folder picker failed"); return end
 		if result.status ~= 0 then
-			-- Cancel (AppleScript error -128), timeouts, and pickers ended by a
-			-- signal (status -1, e.g. a plugin reload) need no message.
-			if result.status == -1 or string.find(result.stderr or "", "-128", 1, true) then return end
+			-- Cancel (AppleScript error -128, zenity and kdialog status 1),
+			-- timeouts, and pickers ended by a signal (status -1, e.g. a plugin
+			-- reload) need no message.
+			if result.status == -1 or result.status == cancelled or string.find(result.stderr or "", "-128", 1, true) then return end
 			report(nextCx, "Couldn't open the folder picker: " .. ((result.stderr or ""):match("^%s*(.-)%s*$")), "Folder picker failed")
 			return
 		end
@@ -2194,7 +2265,7 @@ local function helperFailed(id, job)
 	local pid = tonumber(tern.fs.read(pidFile))
 	if not pid then return true end
 	probing[id] = true
-	wt.spawn({ "/bin/kill", "-0", tostring(pid) }, { timeout_ms = 5000 }, function(result)
+	wt.spawn({ wt.find_executable("kill") or "/bin/kill", "-0", tostring(pid) }, { timeout_ms = 5000 }, function(result)
 		probing[id] = nil
 		if result and result.status ~= 0 then dead[id] = true end
 	end)
@@ -2635,7 +2706,7 @@ end
 -- repeat trips), this clock finishes jobs whose receipts are in and keeps the
 -- panel in the shown tab, so neither waits for timers to come back.
 local function processClock()
-	local ok = pcall(budget.process, "clock", { "/bin/sleep", "5" }, { timeout_ms = 15000 }, function(_result, cx)
+	local ok = pcall(budget.process, "clock", { wt.sleep(), "5" }, { timeout_ms = 15000 }, function(_result, cx)
 		processClock()
 		if not cx or not localHost(cx) then return end
 		local restarted = ensureTicking("the process clock")

@@ -21,7 +21,7 @@ local function client()
 end
 
 local function ternBinary()
-	return wt.find_executable("tern") or "/Applications/Tern.app/Contents/MacOS/tern"
+	return wt.tern_binary()
 end
 
 -- The omp session id in `tern inspect --json` output for `pane`, or nil.
